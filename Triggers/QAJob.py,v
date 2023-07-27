@@ -1,0 +1,100 @@
+head     1.857;
+access   ;
+symbols  ;
+locks    ;comment  @@;
+
+
+1.857
+date     2009.03.18.13.11.17;  author p4;  state deleted;
+branches ;
+next     1.2;
+
+1.2
+date     2006.11.30.09.02.11;  author p4;  state Exp;
+branches ;
+next     1.1;
+
+1.1
+date     2006.11.08.10.13.38;  author p4;  state Exp;
+branches ;
+next     ;
+
+
+desc
+@@
+
+
+1.857
+log
+@@
+text
+@#!c:\Python24
+import  sys
+from P4 import P4,P4Exception
+
+changeList = sys.argv[1]
+userName   = sys.argv[2]
+
+p4c = P4() 
+p4c.port = "20061"
+p4c.user = userName
+p4c.client = "triggers"
+p4c.connect()
+
+fixes = p4c.run("fixes", "-c"+changeList)
+for fix in fixes:
+    jobNumber = fix["Job"]
+    job = p4c.fetch_job(jobNumber)
+    if (job["Status"] == "fixed"):
+        job["Assigned"] = "QA"
+        result = p4c.save_job(job)@
+
+
+1.2
+log
+@@
+text
+@d2 2
+a3 1
+import  sys, p4
+d8 1
+a8 1
+p4c = p4.P4()
+a11 1
+p4c.parse_forms()
+@
+
+
+1.1
+log
+@@
+text
+@d2 1
+a2 1
+import sys, os, regex
+d5 1
+a5 3
+p4         = 'p4 -p localhost:20061 -u background -c Triggers '
+status     = 'false'
+jobform    = ''
+d7 14
+a20 18
+for fix in os.popen(p4+'-s fixes -c '+changeList):
+    jobNumberPos = regex.search('job',fix)
+    if jobNumberPos >=0:
+        jobNumber = fix[jobNumberPos:15]
+        for line in os.popen(p4+'job -o '+jobNumber):
+            if (line[8:13] == 'fixed'):
+                status = 'fixed'
+            if (line[0:8] == 'Assigned') and (status == 'fixed'):
+                line = 'Assigned:\tQA\n'    
+            jobform = jobform+line
+        if (status == 'fixed'):
+            f=os.popen(p4+'job -i '+jobNumber,'w')
+            print >>f,jobform
+            f.flush()
+            f.write(jobform)
+            f.close()
+        jobform = ''
+        status  = 'false'
+@
