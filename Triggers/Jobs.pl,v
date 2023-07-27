@@ -1,0 +1,91 @@
+head     1.1;
+access   ;
+symbols  ;
+locks    ;comment  @@;
+
+
+1.1
+date     2006.06.27.11.12.01;  author p4;  state Exp;
+branches ;
+next     ;
+
+
+desc
+@@
+
+
+1.1
+log
+@@
+text
+@#
+# Example trigger to enforce a rule "submissions must have a job associated
+# with them." (See note #2, immediately before the code.)
+#
+# This script will do the following:
+#	1. Return "success" (exit code 0) if the change has
+#	   at least one "job" associated with it;
+#	2. Otherwise, reports an error.
+#
+# Unix usage:
+#	perl /whatever/Jobs.pl %changelist% %serverport%
+# NT usage:
+#       c:/perl/bin/perl  c:/whatever/Jobs.pl %changelist% %serverport%
+# (Note that the name of this script might need to be an "8.3" filename,
+# depending on the version of Perl you're running.)
+#
+# Example 'triggers' section:
+#    Triggers:
+#	exJobs  //...   "c:/perl/bin/perl c:/whatever/Jobs.pl %changelist% %serverport%"
+#
+# Tested on Platforms:   FreeBSD, NT (as program, not service).
+#
+# You might need to...
+# 1. You might need to run change the "$p4 = ......." line, below,
+#    to add a username and password ('p4 -u hardcodedusername  -P
+#    hardcodeduserpasswd -p $ServerPort') if the default user it's
+#    connecting as isn't appropriate.
+# 2. Note that this uses a 'p4 jobs' construct that assumes
+#    you have a specific bug database mechanism in place - you will
+#    want to change that to something like "p4 jobs -e status=open" or
+#    the like.)
+
+############################ code start:  jobs.pl
+# Trigger to check that a submitted changelist has a job
+# attached that is in a specific state. Pass in
+# changenumber and serverport.
+
+$ChangeNum = $ARGV[0];
+$ServerPort = $ARGV[1];
+$p4 = "p4 -p $ServerPort";
+
+# Get info on our changelist
+@@ChangeInfo = `$p4 describe -s $ChangeNum`;
+
+# Get list of jobs that are in the correct state
+@@ValidJobs = `$p4 jobs -e DevTrack_Status=3._Coding_and_Unit_Testing`;
+
+# If there are valid jobs, check to see if one is attached
+# to the current changelist
+for $ValidJob (@@ValidJobs) {
+        ($ValidJob, undef) = split (/ /, $ValidJob);
+        # Loop through each line in the current changelist description
+        # looking for our current $ValidJob as we go
+        foreach $ChangeInfo (@@ChangeInfo) {
+                if ($ChangeInfo =~ $ValidJob) {
+                        exit(0); # Let's accept this changelist
+                } # end if
+        } # end foreach
+} # end for
+
+# If no valid jobs are found or are attached to our
+changelist, fall through to this
+print("\n\n***********************************************\n\n");
+print("You must have at least one job in the\n");
+print("\"Coding and Unit Testing\" state attached to\n");
+print("this changelist to submit to this codeline!");
+print("\n\n***********************************************\n\n");
+exit(1); # Let's not accept this changelist
+############################ code end
+
+@

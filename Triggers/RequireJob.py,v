@@ -1,0 +1,93 @@
+head     1.843;
+access   ;
+symbols  ;
+locks    ;comment  @@;
+
+
+1.843
+date     2007.10.09.14.44.52;  author p4;  state Exp;
+branches ;
+next     1.3;
+
+1.3
+date     2006.11.08.10.14.27;  author p4;  state Exp;
+branches ;
+next     1.2;
+
+1.2
+date     2006.07.13.14.45.28;  author p4;  state Exp;
+branches ;
+next     1.1;
+
+1.1
+date     2006.07.13.14.44.07;  author p4;  state Exp;
+branches ;
+next     ;
+
+
+desc
+@@
+
+
+1.843
+log
+@@
+text
+@#!c:\Python24
+import sys, os, re
+
+changeList = sys.argv[1]
+user       = sys.argv[2]
+p4         = 'p4 -p localhost:20061 -u background -c Triggers '
+
+adminGroup = os.popen(p4+'group -o Administrators').read()
+p = re.compile(user+'\n')
+if p.match(adminGroup) == "None":
+    sys.exit(0)
+else:
+    changeListDescription = os.popen(p4+'describe -s '+changeList).read()
+    p = re.compile('Jobs fixed...')
+    if p.match(changeListDescription) <> "None":
+        sys.exit(0)
+    else:
+        print 'At least one of the files on your changelist requires you to have a job associated with any submission'
+        sys.exit(1)
+sys.exit(1)@
+
+
+1.3
+log
+@@
+text
+@d2 1
+a2 1
+import sys, os, regex
+d9 2
+a10 2
+adminUser  = regex.search(user+'\n',adminGroup)
+if adminUser > 0:
+d14 2
+a15 2
+    jobAssigned = regex.search('Jobs fixed...',changeListDescription)
+    if jobAssigned > 0:
+@
+
+
+1.2
+log
+@@
+text
+@d1 1
+a1 1
+# !c:\Python24
+@
+
+
+1.1
+log
+@@
+text
+@d6 1
+a6 1
+p4         = 'p4 -p localhost:20061 -u sysop -c Triggers '
+@

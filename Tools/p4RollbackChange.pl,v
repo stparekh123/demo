@@ -1,0 +1,186 @@
+head     1.1;
+access   ;
+symbols  ;
+locks    ;comment  @@;
+
+
+1.1
+date     2006.11.08.16.10.22;  author p4;  state Exp;
+branches ;
+next     ;
+
+
+desc
+@@
+
+
+1.1
+log
+@@
+text
+@#!/usr/local/bin/perl -w
+
+
+use strict;
+use warnings;
+#################################################################################
+#                                                                               #
+#   Author: Michael Alessio malessio@@perforce.com                               #
+#                                                                               #
+#   This script is provided as a prototype only and I do not garantee that it   #
+#   will work for you.  While feedback and bug reports are apreciated, I do not #
+#   garantee that I will address them (but I might :-)                          #
+#                                                                               #
+#   This script will create a new changelist undoing an existing changelist     #
+#   (Possibly requiring multiple resolves depending upon what has happened to   #
+#   the involved files since)                                                   #
+#                                                                               #
+#   Caveat:                                                                     #
+#   Delete, Add, and Branch Operations will not be rolled back in this release. #
+#   CLI only.  I plan on enabling it to run as a tool in the future.            #
+#                                                                               #
+#   Usage:                                                                      #
+#   1) Run the script and supply it with a changelist number.                   #
+#                                                                               #
+#################################################################################
+
+my $line;
+my $change_output;
+my $changelist;
+my $i;
+my $j;
+my $syncstring;
+my $integration;
+my $filestring;
+my $p4string;
+
+my @@file_array;
+my @@revision_array;
+my @@operation_array;
+
+
+#
+# Get Changelist from user
+#
+
+print "Changlist to rollback: ";
+$changelist=<STDIN>;
+chomp($changelist);
+print "\n";
+
+#
+# Find file revisions affected by that changelist and how they were affected
+#
+
+print "Executing p4 describe -s $changelist\n";
+open P4PIPE, "p4 describe -s $changelist |";
+
+$i=0;
+while( $line = <P4PIPE> ){
+  chomp($line);  
+  if ($line eq "Affected files ..."){
+    $line = <P4PIPE>;
+    while( $line = <P4PIPE> ){
+      chomp($line);
+      if (($file_array[$i],$revision_array[$i],$operation_array[$i]) = ( $line =~ /^\.\.\.\s(.*)#(\d*) (\w*)$/ )){
+
+        #
+        # Notify on add operation
+        #
+        
+        #if (!(($operation_array[$i] eq "edit") or ($operation_array[$i] eq "delete"))){
+         # print "File $file_array[$i] was created in change and will remain unaffected\n";
+        #}
+        $i = $i+1;
+      }
+    }
+  }
+}
+
+#
+# Sync to appropriate file revisions
+#
+  
+  
+$syncstring = "";
+$filestring = "Files: \t";
+for ($j = 0; $j < $i; $j++){
+  if ($operation_array[$j] eq "edit"){  
+    $revision_array[$j]=$revision_array[$j]-1;
+    $p4string = 'p4 sync "'.$file_array[$j].'#'.$revision_array[$j].'"'."\n";
+    print "Executing $p4string\n";
+    open P4PIPE, "$p4string |";
+    while( $line = <P4PIPE> ){}
+    $p4string = 'p4 edit "'.$file_array[$j].'"'."\n";
+    print "Executing $p4string\n";
+    open P4PIPE, "$p4string |";
+    while( $line = <P4PIPE> ){}
+    $filestring = "$filestring \n\t$file_array[$j]";
+  }
+  elsif ($operation_array[$j] eq "integrate"){
+    $revision_array[$j]=$revision_array[$j]-1;
+    $p4string = 'p4 sync "'.$file_array[$j].'#'.$revision_array[$j].'"'."\n";
+    print "Executing $p4string\n";
+    open P4PIPE, "$p4string |";
+    while( $line = <P4PIPE> ){}
+    $p4string = 'p4 edit "'.$file_array[$j].'"'."\n";
+    print "Executing $p4string\n";
+    open P4PIPE, "$p4string |";
+    while( $line = <P4PIPE> ){}
+    $filestring = "Hello\t".$filestring.$file_array[$j]."\n";
+  }
+#  elsif ($operation_array[$j] eq "delete"){
+#    $revision_array[$j]=$revision_array[$j]-1;
+#    $p4string = 'p4 sync "'.$file_array[$j].'#'.$revision_array[$j].'"'."\n";
+#    print "Executing $p4string\n";
+#    open P4PIPE, "$p4string |";
+#    while( $line = <P4PIPE> ){}
+#    $p4string = 'p4 edit "'.$file_array[$j].'"'."\n";
+#    print "Executing $p4string\n";
+#    open P4PIPE, "$p4string |";
+#    while( $line = <P4PIPE> ){}
+#    $filestring = "\t".$filestring.$file_array[$j]."\n";
+#  } 
+#  elsif ($operation_array[$j] eq "add"){
+#    $p4string = 'p4 delete "'.$file_array[$j].'"'."\n";
+#    print "Executing $p4string\n";
+#    open P4PIPE, "$p4string |";
+#    while( $line = <P4PIPE> ){}
+#    $filestring = "\t".$filestring.$file_array[$j]."\n";
+#  }   
+#  elsif ($operation_array[$j] eq "branch"){
+#    $p4string = 'p4 delete "'.$file_array[$j].'"'."\n";
+#    print "Executing $p4string\n";
+#    open P4PIPE, "$p4string |";
+#    while( $line = <P4PIPE> ){}
+#    $filestring = "\t".$filestring.$file_array[$j]."\n";
+#  }
+   else{
+     print "$operation_array[$j] not supported in rollback\n";
+   }
+}
+
+  #
+  # create a new changelist
+  #
+  
+  print "p4 change -i\n";
+  print "Change:	new\n";
+  print "Description: Rollback of changelist $changelist\n";
+  print $filestring;
+
+
+
+  open P4PIPE, "| p4 change -i";
+  print P4PIPE "Change:	new\n";
+  print P4PIPE "Description: Rollback of changelist $changelist\n";
+  print P4PIPE $filestring;
+  close P4PIPE;
+
+  
+
+
+
+
+
+@
